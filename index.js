@@ -1,35 +1,50 @@
 #!/usr/bin/env node
-const path = require('path');
-const puppeteer = require('puppeteer');
-const superstatic = require('superstatic').server;
-const shell = require('shelljs');
-const caporal = require('caporal');
-const fs = require('fs');
-
 let routes = [];
+let config
 let _port = 3000;
+const path = require('path')
+const puppeteer = require('puppeteer')
+const superstatic = require('superstatic').server
+const shell = require('shelljs')
+const caporal = require('caporal')
+const fs = require('fs')
+const _ = require('lodash')
 
 caporal
   .version('0.0.2')
   .description('Prerender your single page app')
   .argument('[directory]', 'Directory your site lives in')
   .option(
-    '--routes',
-    'List of routes to prerender - Default is "/"',
-    caporal.LIST
+  '--routes',
+  'List of routes to prerender - Default is "/"',
+  caporal.LIST
   )
   .option(
-    '--port',
-    'Port used to run the build server - Default is port 3000',
-    caporal.INT
+  '--port',
+  'Port used to run the build server - Default is port 3000',
+  caporal.INT
   )
-  .action(async function(args, options, logger) {
+  .action(async function (args, options, logger) {
     serve(args.directory, options.port);
-    if (options.routes) {
-      const staticFiles = options.routes.map(async (route, index) => {
-        const result = await go(options, route);
-        return await saveFile(args.directory, route, result);
-      });
+
+    // Check for rex.config.js file
+    if (fs.existsSync(path.join(process.cwd(), 'rex.config.js'))) {
+      const configFile = require(path.join(process.cwd(), 'rex.config.js'))
+      const configObject = configFile()
+      config = Object.assign({}, options, configObject)
+    }
+
+    config = _.mergeWith(config, options, args, mergeArrayValues)
+
+    // If flags were passed
+    if (config.routes) {
+      const staticFiles = config.routes.map(async (route) => {
+        const result = await go(config, route)
+        return await saveFile(config.directory, route, result)
+      })
+
+      await waitForStaticFiles(staticFiles)
+      process.exit()
 
       await waitForStaticFiles(staticFiles);
       process.exit();
@@ -89,4 +104,10 @@ async function saveFile(directory, route = '', contents) {
 async function waitForStaticFiles(staticFiles) {
   return Promise.all(staticFiles);
   // .then(process.exit)
+}
+
+function mergeArrayValues(objValue, srcValue) {
+  if (_.isArray(objValue)) {
+    return objValue.concat(srcValue);
+  }
 }
