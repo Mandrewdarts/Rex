@@ -93,6 +93,9 @@ function serve(directory, port) {
   app.listen();
 }
 
+// TODO: Break these functions out into a `utils` folder
+// so it will be easier to start testing
+
 async function go(opts, route = '') {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
