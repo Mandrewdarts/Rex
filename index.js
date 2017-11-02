@@ -29,34 +29,57 @@ caporal
 
     // Check for rex.config.js file
     if (fs.existsSync(path.join(process.cwd(), 'rex.config.js'))) {
+
+      // get config file
       const configFile = require(path.join(process.cwd(), 'rex.config.js'))
+
+      // call config function to return data
       const configObject = configFile()
+
+      // Merge cli options with config file options
       config = Object.assign({}, options, configObject)
     }
 
+    // Merge config file options with cli options and args
     config = _.mergeWith(config, options, args, mergeArrayValues)
 
-    // If flags were passed
+    // If routes were provided
     if (config.routes) {
+
+      // Iterate over routes to prerender
+      // and create an array of file objects
       const staticFiles = config.routes.map(async (route) => {
+
+        // Navigate and return contents of route
         const result = await go(config, route)
+
+        // Wait for file to save
         return await saveFile(config.directory, route, result)
       })
 
+      // Wait for all routes to be rendered
       await waitForStaticFiles(staticFiles)
+
+      // Kills the server and exits the process
       process.exit()
 
-      await waitForStaticFiles(staticFiles);
-      process.exit();
     } else {
+      // This block only runs if the only route is '/'
+
+      // Navigate and return contents of route
       const result = await go(options);
+
+      // Wait for file to save
       await saveFile(args.directory, '/', result);
+
+      // Kills the server and exits the process
       process.exit();
     }
   });
 
 caporal.parse(process.argv);
 
+// Create local server
 function serve(directory, port) {
   _port = port || 3000;
   const app = superstatic({
@@ -103,7 +126,6 @@ async function saveFile(directory, route = '', contents) {
 
 async function waitForStaticFiles(staticFiles) {
   return Promise.all(staticFiles);
-  // .then(process.exit)
 }
 
 function mergeArrayValues(objValue, srcValue) {
